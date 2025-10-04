@@ -1,25 +1,16 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import PiOverlay from '@/component/PiOverlay.vue'
 import PiCardContainer from '@/component/PiCardContainer.vue'
 import PiTextField from '@/component/PiTextField.vue'
 import { VForm } from 'vuetify/components'
+import { Car } from '@/type/Car.ts'
+import { apiDeleteCar, apiGetCars, apiSaveCar, apiUpdateCar } from '@/service/CarApiService.ts'
 
-interface Car {
-  name: string
-  year: string
-  fuel: string
-  price: number
-}
-
-const cars = ref<Car[]>([
-  { name: 'Toyota', year: '2020', fuel: 'Petrol', price: 30000 },
-  { name: 'Honda', year: '2019', fuel: 'Diesel', price: 25000 },
-  { name: 'Ford', year: '2018', fuel: 'Electric', price: 27000 },
-])
+const cars = ref<Car[]>([])
 const showAddPopup = ref(false)
 const loadingOverlay = ref(false)
-const newCar = ref<Car>({ name: '', year: '', fuel: '', price: 1000 })
+const newCar = ref<Car>({ id: 0, name: '', year: '', fuel: '', price: 1000 })
 const editingIndex = ref<number | null>(null)
 
 const form = ref<VForm>()
@@ -28,8 +19,12 @@ const form = ref<VForm>()
 const currentYear = new Date().getFullYear()
 const yearOptions = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => (1980 + i).toString())
 
+onMounted(async () => {
+  cars.value = await apiGetCars()
+})
+
 function resetNewCar() {
-  newCar.value = { name: '', year: '', fuel: '', price: 1000 }
+  newCar.value = { id: 0, name: '', year: '', fuel: '', price: 1000 }
 }
 
 function openAddDialog() {
@@ -48,18 +43,21 @@ async function saveCar() {
   if (!(await form.value!.validate()).valid) {
     return
   }
+
   if (editingIndex.value === null) {
-    cars.value.push({ ...newCar.value })
+    await apiSaveCar(newCar.value)
   } else {
-    cars.value[editingIndex.value] = { ...newCar.value }
+    await apiUpdateCar(cars.value[editingIndex.value].id, newCar.value)
   }
+
+  cars.value = await apiGetCars()
+
   showAddPopup.value = false
-  editingIndex.value = null
-  resetNewCar()
 }
 
-function deleteCar(index: number) {
-  cars.value.splice(index, 1)
+async function deleteCar(index: number) {
+  await apiDeleteCar(cars.value[index].id)
+  cars.value = await apiGetCars()
 }
 
 function handleCancel() {
